@@ -2,19 +2,39 @@
 
 ## Visão geral
 
+```mermaid
+graph LR
+    %% Definição de estilos
+    classDef repoBox fill:#f8f9fa,stroke:#333333,stroke-width:1.5px,color:#212529;
+    classDef edgeStyle stroke:#0066cc,stroke-width:2px;
+
+    %% Subgraph para o Repositório do Time
+    subgraph RepoTime["Repo do time (ex.: ml-churn)"]
+        NodeTime["<b>azure-pipelines.yml</b> (~75 linhas, fixa uma tag)<br/><b>databricks.yml</b> + resources<br/><b>conf/*.yml</b><br/><b>src/&lt;pacote&gt;/</b><br/><b>tests/</b> {unit, spark, integration, smoke}<br/><b>notebooks/</b> (finos)"]:::repoBox
+    end
+
+    %% Subgraph para o Repositório Central
+    subgraph RepoCentral["Repo central (mlops-platform)"]
+        NodeCentral["<b>pipelines/templates/</b><br/>  ├─ ml-project-pipeline.yml<br/>  ├─ ci.yml, build.yml,<br/>  └─ deploy-hml.yml, ...<br/><b>pipelines/steps/*.yml</b><br/><b>scripts/*.py</b> (validação, comparação,<br/>  promoção, rollback — sem PySpark)"]:::repoBox
+    end
+
+    %% Conexão estendendo o template
+    NodeTime -- "extends" --> NodeCentral
+
+    %% Estilização do link
+    linkStyle 0 stroke:#0066cc,stroke-width:2px;
 ```
-Repo do time (ex.: ml-churn)          Repo central (mlops-platform)
-┌───────────────────────────┐        ┌──────────────────────────────┐
-│ azure-pipelines.yml (~40   │extends │ pipelines/templates/          │
-│ linhas, fixa uma tag)      │───────▶│   ml-project-pipeline.yml     │
-│ databricks.yml + resources │        │   ci.yml, build.yml,           │
-│ conf/*.yml                 │        │   deploy-hml.yml, ...          │
-│ src/<pacote>/               │        │ pipelines/steps/*.yml          │
-│ tests/{unit,spark,          │        │ scripts/*.py (validação,       │
-│   integration,smoke}        │        │   comparação, promoção,        │
-│ notebooks/ (finos)          │        │   rollback -- sem PySpark)      │
-└───────────────────────────┘        └──────────────────────────────┘
-```
+
+---
+
+| Aspecto | **Repo do Time** (ex.: `ml-churn`) | **Repo Central** (`mlops-platform`) |
+| :--- | :--- | :--- |
+| **Papel Principal** | Define a **métrica de negócio e código** do projeto de ML. | Define a **padronização, segurança e infraestrutura** de CI/CD. |
+| **Conteúdo Armazenado** | • Código-fonte (`src/`)<br/>• Testes (unit, spark, smoke)<br/>• Configurações do projeto (`conf/*.yml`)<br/>• Notebooks e pipelines Databricks (`databricks.yml`) | • Templates de pipeline (`ml-project-pipeline.yml`, `ci.yml`, etc.)<br/>• Steps reutilizáveis (`pipelines/steps/*.yml`)<br/>• Scripts de governança, validação e promoção (`scripts/*.py`) |
+| **Arquivo de Entrada** | `azure-pipelines.yml` (enxuto, ~75 linhas no `project-template`). | `pipelines/templates/ml-project-pipeline.yml`. |
+| **Como o `extends` Funciona** | Declara o uso do template apontando para o repositório central, fixa a versão do template por tag (`resources.repositories[].ref: refs/tags/vX.Y.Z`) e passa **parâmetros específicos** (ex.: `projectName`, `packageName`, `pythonVersion`). | Recebe os parâmetros fornecidos pelo repo do time e executa a sequência padronizada de *build*, validação, testes e *deploy*. |
+| **Frequência de Mudança** | Constante (a cada nova iteração de modelo, experimentos ou ajustes de código). | Baixa (atualizações de versão dos templates, novos padrões de governança ou novos scripts centrais). |
+| **Vantagens desse Modelo** | O cientista de dados não precisa escrever YAMLs complexos de CI/CD; foca apenas no código do modelo. | Garante conformidade e governança para toda a empresa; correções de pipeline central refletem em todos os projetos. |
 
 O **código do modelo** (Spark, MLflow, features, EDA) vive sempre no
 repositório do time. O **repositório central** nunca recebe cópias desse
